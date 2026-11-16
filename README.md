@@ -16,17 +16,70 @@ aucun état global partagé).
 
 ## Installation
 
-1. Installer **Steamodded** (Lovely) pour Balatro.
-2. Copier le contenu de ce repo dans :
+### 1. Installer Steamodded (Lovely)
 
-   ```
-   %AppData%\Roaming\Balatro\Mods\BalatroHintMachine\
-   ```
+Sans Lovely, aucun mod ne tourne. Procédure validée (Windows, Balatro Steam) :
 
-   Le dossier doit contenir `main.lua`, `hintbridge.lua`, `json.lua`, `README.md`.
-3. Lancer Balatro, ouvrir le menu **Mods**, activer **BalatroHintMachine**, relancer le jeu.
-4. Côté HintMachine : lancer l'app, choisir le connecteur **« Balatro »** — il se connecte
-   dès que le process `Balatro` tourne et que le fichier d'état existe.
+1. Télécharger le dernier injecteur Lovely :
+   <https://github.com/ethangreen-dev/lovely-injector/releases/latest> → asset
+   `lovely-x86_64-pc-windows-msvc.zip`.
+2. Extraire le zip : il contient `winmm.dll`.
+3. Copier `winmm.dll` **à côté de `Balatro.exe`**, dans le dossier d'installation du jeu
+   (ex `F:\SteamLibrary\steamapps\common\Balatro\`). Pour trouver ce dossier :
+   Steam → clic droit sur **Balatro** → *Propriétés* → *Fichiers installés* → *Parcourir*.
+4. Vérifier : `winmm.dll` est bien présent à côté de `Balatro.exe`.
+
+> Ne pas lancer `Balatro.exe` directement hors de Steam : le jeu quitte immédiatement
+> (code d'erreur 2). Toujours lancer Balatro **via Steam** (bibliothèque ou raccourci Steam).
+
+### 2. Installer le mod
+
+Copier le mod dans `%AppData%\Roaming\Balatro\Mods\` — trois options équivalentes :
+
+- **Recommandé :** télécharger `BalatroHintMachine-vX.Y.Z.zip` dans les
+  [Releases](../../releases) du repo (le zip contient déjà le dossier
+  `BalatroHintMachine/` à sa racine), puis :
+  ```powershell
+  Expand-Archive BalatroHintMachine-vX.Y.Z.zip "$env:AppData\Roaming\Balatro\Mods\"
+  ```
+- **Manuellement :** copier le contenu de ce repo dans
+  `%AppData%\Roaming\Balatro\Mods\BalatroHintMachine\`
+  (le dossier doit contenir `main.lua`, `hintbridge.lua`, `json.lua`, `README.md`) :
+  ```powershell
+  New-Item -ItemType Directory -Force "$env:AppData\Roaming\Balatro\Mods\BalatroHintMachine"
+  Copy-Item E:\Code\BalatroHintMachine\*.lua, E:\Code\BalatroHintMachine\README.md, E:\Code\BalatroHintMachine\LICENSE "$env:AppData\Roaming\Balatro\Mods\BalatroHintMachine\"
+  ```
+- **Git :** `git clone <url-du-repo> "$env:AppData\Roaming\Balatro\Mods\BalatroHintMachine"`
+
+Ne pas imbriquer : on veut `Mods\BalatroHintMachine\main.lua`, pas `Mods\BalatroHintMachine\BalatroHintMachine\main.lua`.
+
+### 3. Activer le mod dans le jeu
+
+1. Lancer Balatro **via Steam**.
+2. Menu principal → **Mods** → activer **BalatroHintMachine** → quitter et relancer le jeu
+   (les mods ne se chargent qu'au lancement).
+3. Vérification immédiate : dès le menu principal, le mod écrit son premier état. Le fichier
+   suivant doit exister :
+   ```powershell
+   Get-Content "$env:AppData\Roaming\Balatro\HintMachine\state.json"
+   ```
+   Contenu attendu (hors run) :
+   ```json
+   {"protocol":2,"seq":1,"in_run":false,"ante":0,"chips":"0","counters":{"boss_blinds_beaten":0,"runs_won":0,"hands_played":0,"jokers_bought":0},"checksum":NNN}
+   ```
+   Si le fichier n'existe pas : ouvrir la console Lovely au lancement du jeu et chercher une
+   erreur `[BalatroHintMachine]`, et vérifier que le mod est bien coché dans le menu Mods.
+
+### 4. Côté HintMachine
+
+Lancer l'app, choisir le connecteur **« Balatro »** — il se connecte dès que le process
+`Balatro` tourne et que le fichier d'état existe.
+
+## Désinstallation
+
+- Supprimer `winmm.dll` du dossier d'installation de Balatro (à côté de `Balatro.exe`).
+- Supprimer `%AppData%\Roaming\Balatro\Mods\BalatroHintMachine\` et
+  `%AppData%\Roaming\Balatro\HintMachine\`.
 
 ## Fichiers
 
@@ -57,7 +110,7 @@ Aucun socket : pas de DLL C++ native.
 charge `json.lua` puis `hintbridge.lua` avec `NFS.load(SMODS.current_mod.path .. '<fichier>')()`
 (pattern identique à BalatroAP).
 
-## Protocole pont — version 1 (contrat avec `BalatroConnector.cs`)
+## Protocole pont — version 2 (contrat avec `BalatroConnector.cs`)
 
 ### Fichier
 
@@ -72,7 +125,7 @@ avec `NFS.write('HintMachine/state.json', payload)`.
 
 ```json
 {
-  "protocol": 1,
+  "protocol": 2,
   "seq": 1284,
   "in_run": true,
   "ante": 3,
@@ -89,7 +142,7 @@ avec `NFS.write('HintMachine/state.json', payload)`.
 
 | Champ | Type | Sémantique |
 |---|---|---|
-| `protocol` | entier | Version du protocole, doit valoir **1** (`BRIDGE_PROTOCOL_VERSION`). |
+| `protocol` | entier | Version du protocole, doit valoir **2** (`BRIDGE_PROTOCOL_VERSION`). |
 | `seq` | entier | Incrémenté **à chaque écrit** ; le connecteur ignore tout `seq <=` dernier seq vu. |
 | `in_run` | booléen | `G.STAGE == G.STAGES.RUN`. |
 | `ante` | entier | `G.GAME.round_resets.ante`. |
@@ -109,16 +162,15 @@ Le checksum est la **somme de tous les octets du payload excluant le champ `"che
 lui-même**. Construction exacte côté mod :
 
 ```
-body    = json.encode(objet SANS checksum)     -- ex {"protocol":1,...,"counters":{...}}
-head    = body sans l'accolade finale           -- body:sub(1, -2)
-checksum = somme des octets de (head .. ",}")
-payload = head .. ',"checksum":' .. checksum .. '}'
+body    = json.encode(objet SANS checksum)     -- ex {"protocol":2,...,"counters":{...}}
+checksum = somme des octets de body            -- objet complet, accolade finale incluse
+payload = body sans '}' final .. ',"checksum":' .. checksum .. '}'
 ```
 
 Le payload doit rester **ASCII** (les valeurs sont ASCII ; `json.lua` n'échappe que les
 caractères de contrôle, et `chips` vient de `tostring(double)` donc toujours ASCII), donc
 indice caractère == indice octet. Côté C#, le connecteur retire la sous-chaîne
-`"checksum"\s*:\s*\d+` du brut lu et somme tous les autres octets : il doit retrouver
+`,"checksum"\s*:\s*\d+` du brut lu et somme tous les autres octets : il doit retrouver
 `checksum`, sinon la lecture est ignorée (torn read).
 
 ### Politique d'écriture
@@ -142,14 +194,34 @@ indice caractère == indice octet. Côté C#, le connecteur retire la sous-chaî
 
 ## Tests
 
-1. Lancer Balatro avec le mod activé : vérifier que
-   `%AppData%\Roaming\Balatro\HintMachine\state.json` existe et se met à jour pendant une run
-   (`seq` augmente, `in_run: true`, `ante`/`chips`/`counters` cohérents).
-2. Côté HintMachine, connecteur **« Balatro »** : les quêtes (boss blinds battus, runs gagnés,
+1. **Fichier présent dès le menu** : lancer Balatro via Steam avec le mod activé, puis :
+   ```powershell
+   Get-Content "$env:AppData\Roaming\Balatro\HintMachine\state.json"
+   ```
+   Le fichier existe et contient `"protocol":2`. Pendant une run, le suivre en boucle pour voir
+   `seq` augmenter, `in_run: true`, `ante`/`chips`/`counters` cohérents (et `seq` stable quand
+   rien ne change) :
+   ```powershell
+   while ($true) { Get-Content "$env:AppData\Roaming\Balatro\HintMachine\state.json"; Start-Sleep -Milliseconds 300; Clear-Host }
+   ```
+2. **Checksum valide** à chaque écrit :
+   ```powershell
+   $raw = Get-Content "$env:AppData\Roaming\Balatro\HintMachine\state.json" -Raw
+   $body = $raw -replace ',"checksum":\d+', ''
+   $expected = ([System.Text.Encoding]::ASCII.GetBytes($body) | Measure-Object -Sum).Sum
+   $actual = [regex]::Match($raw, '"checksum":(\d+)').Groups[1].Value
+   "attendu=$expected lu=$actual"   # les deux valeurs doivent être égales
+   ```
+3. **Compteurs en run** : battre un boss blind → `boss_blinds_beaten` +1 ; jouer une main →
+   `hands_played` +1 ; acheter un joker au shop → `jokers_bought` +1 ; terminer une run
+   gagnante → `runs_won` +1. Relancer Balatro → tous les compteurs repartent à 0.
+4. **Robustesse** : supprimer `%AppData%\Roaming\Balatro\HintMachine\` en plein jeu → le mod
+   recrée le dossier et le fichier à la prochaine écriture.
+5. Côté HintMachine, connecteur **« Balatro »** : les quêtes (boss blinds battus, runs gagnés,
    mains jouées, jokers achetés, ante atteint, chips scorés) progressent et un hint apparaît
    quand une quête atteint son objectif.
-3. Vérification unitaire du checksum : reconstruire le payload avec l'algorithme ci-dessus et
-   comparer à la somme des octets hors champ `checksum` (cf. `TestHarness.cs` de HintMachine).
+6. Vérification unitaire du checksum côté C# : reconstruire le payload avec l'algorithme
+   ci-dessus et comparer à la somme des octets hors champ `checksum` (cf. `TestHarness.cs` de HintMachine).
 
 ## Licence
 

@@ -6,7 +6,7 @@
 --- DISPLAY_NAME: BalatroHintMachine
 --- PRIORITY: 0
 --- DEPENDENCIES: [Steamodded>=1.0.0]
---- VERSION: 1.0.0
+--- VERSION: 1.1.0
 ----------------------------------------------
 ------------MOD CODE --------------------------
 

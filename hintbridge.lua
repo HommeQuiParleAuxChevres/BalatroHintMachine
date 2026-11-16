@@ -1,11 +1,11 @@
--- hintbridge.lua — logique du pont Balatro -> HintMachine (protocole v1).
+-- hintbridge.lua — logique du pont Balatro -> HintMachine (protocole v2).
 -- Contrat exact avec HintMachine/Models/Games/BalatroConnector.cs :
 --   fichier  : %AppData%/Roaming/Balatro/HintMachine/state.json  (chemin relatif NFS)
---   payload  : {"protocol":1,"seq":N,"in_run":bool,"ante":N,"chips":"...",
+--   payload  : {"protocol":2,"seq":N,"in_run":bool,"ante":N,"chips":"...",
 --               "counters":{...},"checksum":C}
 --   checksum : somme des octets du payload SANS le champ "checksum":N
 --              body = json(objet sans checksum) ; head = body sans '}' final ;
---              C = somme des octets de (head .. ",}") ;
+--              C = somme des octets de body (objet complet, accolade finale incluse) ;
 --              payload = head .. ',"checksum":' .. C .. '}'
 --   écriture : NFS.write('HintMachine/state.json', payload), ~4 Hz max,
 --              uniquement si le contenu a changé (seq incrémenté à chaque écrit).
@@ -13,7 +13,7 @@
 local HB = HintMachineBridge
 local json = HB.json
 
-local PROTOCOL_VERSION = 1
+local PROTOCOL_VERSION = 2
 local BRIDGE_DIR = 'HintMachine'
 local STATE_PATH = 'HintMachine/state.json'
 local WRITE_INTERVAL = 0.25 -- ~4 Hz max
@@ -39,7 +39,7 @@ local function ensure_dir()
     HB._dir_ready = true
 end
 
--- Objet d'état (protocole v1). "chips" est une STRING car c'est un double
+-- Objet d'état (protocole v2). "chips" est une STRING car c'est un double
 -- LuaJIT qui peut dépasser 2^53 (ex "1e+20").
 local function build_state(seq)
     local in_run = false
@@ -74,10 +74,9 @@ end
 -- et toutes nos valeurs sont ASCII (chips vient de tostring(double)).
 local function build_payload(state)
     local body = json.encode(state)      -- objet SANS checksum
-    local head = body:sub(1, -2)         -- body sans l'accolade finale
-    local s = head .. ',}'
     local cs = 0
-    for i = 1, #s do cs = cs + s:byte(i) end
+    for i = 1, #body do cs = cs + body:byte(i) end
+    local head = body:sub(1, -2)         -- body sans l'accolade finale
     return head .. ',"checksum":' .. cs .. '}'
 end
 

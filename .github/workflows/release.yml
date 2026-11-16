@@ -1,0 +1,44 @@
+name: Release
+
+# Build BalatroHintMachine-<tag>.zip (zip root = the BalatroHintMachine/ folder,
+# so extracting it into %AppData%/Roaming/Balatro/Mods/ yields Mods/BalatroHintMachine/...)
+# and attach it to a GitHub release on tags v*.
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Stage mod folder (zip root = BalatroHintMachine/)
+        run: |
+          mkdir -p dist
+          tar --exclude='./.git' --exclude='./.github' --exclude='./dist' -cf - . \
+            | (mkdir -p dist/BalatroHintMachine && tar -xf - -C dist/BalatroHintMachine)
+
+      - name: Create release zip
+        run: |
+          cd dist
+          zip -r "../BalatroHintMachine-${GITHUB_REF_NAME}.zip" BalatroHintMachine
+          cd ..
+          ls -la BalatroHintMachine-*.zip
+
+      - name: Verify zip structure (must be BalatroHintMachine/main.lua, not main.lua at root)
+        run: unzip -l "BalatroHintMachine-${GITHUB_REF_NAME}.zip"
+
+      - name: Create GitHub release with the zip as asset
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: BalatroHintMachine-*.zip
+          generate_release_notes: true
