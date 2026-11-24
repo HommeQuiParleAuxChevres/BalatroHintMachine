@@ -34,7 +34,17 @@ jobs:
           ls -la BalatroHintMachine-*.zip
 
       - name: Verify zip structure (must be BalatroHintMachine/main.lua, not main.lua at root)
-        run: unzip -l "BalatroHintMachine-${GITHUB_REF_NAME}.zip"
+        run: |
+          unzip -l "BalatroHintMachine-${GITHUB_REF_NAME}.zip"
+          unzip -l "BalatroHintMachine-${GITHUB_REF_NAME}.zip" | grep -q 'BalatroHintMachine/main.lua'
+          ! unzip -l "BalatroHintMachine-${GITHUB_REF_NAME}.zip" | grep -qE ' main.lua
+      - name: Create GitHub release with the zip as asset
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: BalatroHintMachine-*.zip
+          generate_release_notes: true
+
 
       - name: Create GitHub release with the zip as asset
         if: startsWith(github.ref, 'refs/tags/')
